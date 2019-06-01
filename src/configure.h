@@ -1,0 +1,6 @@
+#ifndef S_SPMCONFIGURE
+#define S_SPMCONFIGURE
+
+#define TOTAL_MANAGED 10
+#define COMMUNICATION_FIFO_LOCATION ".spmfifo"
+#endif

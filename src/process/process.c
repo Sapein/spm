@@ -1,0 +1,209 @@
+#include <stdio.h>
+#include <stdbool.h>
+#include <stdlib.h>
+#include <sys/wait.h>
+#include <sys/types.h>
+#include <signal.h>
+#include <unistd.h>
+#include "process.h"
+
+struct SPM_Command {
+    uint32_t size;
+    char command[];
+};
+
+struct SPM_Process {
+    pid_t process_id;
+    enum SPM_ProcessStatus CurrentStatus;
+    struct SPM_Command *start;
+    struct SPM_Command *stop;
+    struct SPM_Command *restart;
+};
+
+struct SPM_Command *SPM_CreateCommand(uint32_t command_len, char command[]){
+    struct SPM_Command *new_command = NULL;
+    if((new_command = calloc(1, sizeof(struct SPM_Command) + (command_len * sizeof(char))) ) != NULL){
+        new_command->size = command_len;
+        if(snprintf(new_command->command, command_len, "%s", command) < command_len - 1){
+            fprintf(stderr, "WARNING: Command %s is unable to be used because it is truncated!\n", command);
+            free(new_command);
+            new_command = NULL;
+        }
+    }
+    return new_command;
+}
+
+void SPM_DestroyCommand(struct SPM_Command *command){
+    free(command);
+}
+
+struct SPM_Process *SPM_CreateProcess(struct SPM_Command *start, struct SPM_Command *stop, struct SPM_Command *restart){
+    struct SPM_Process *new_proc = NULL;
+    struct SPM_Command *command_buff = NULL;
+    if((new_proc = calloc(1, sizeof(struct SPM_Process))) != NULL){
+        new_proc->start = NULL;
+        new_proc->stop = NULL;
+        new_proc->restart = NULL;
+        new_proc->process_id = -1;
+        new_proc->CurrentStatus = CREATED;
+        if(start != NULL  && (command_buff = SPM_CreateCommand(start->size, start->command)) != NULL){
+            new_proc->start = command_buff;
+            command_buff = NULL;
+            if(stop != NULL && (command_buff = SPM_CreateCommand(stop->size, stop->command)) != NULL){
+                new_proc->stop = command_buff;
+                command_buff = NULL;
+            }else if(stop != NULL){
+                free(new_proc->start);
+                free(new_proc);
+                new_proc = NULL;
+                command_buff = NULL;
+                goto end;
+            }
+            if(restart != NULL && (command_buff = SPM_CreateCommand(restart->size, restart->command)) != NULL){
+                new_proc->restart = command_buff;
+                command_buff = NULL;
+            }else if(restart != NULL){
+                free(new_proc->start);
+                if(new_proc->stop != NULL){
+                    free(new_proc->stop);
+                }
+                command_buff = NULL;
+                new_proc = NULL;
+                goto end;
+            }
+        }else{
+            free(new_proc);
+            new_proc = NULL;
+        }
+    }
+end:
+    return new_proc;
+}
+
+struct SPM_Process *SPM_DestroyProcess(struct SPM_Process *proc){
+    if(proc != NULL){
+        free(proc->start);
+        if(proc->stop != NULL){
+            free(proc->stop);
+        }
+        if(proc->restart != NULL){
+            free(proc->restart);
+        }
+        proc->start = NULL;
+        proc->restart = NULL;
+        proc->stop = NULL;
+        free(proc);
+        proc = NULL;
+    }
+}
+
+enum SPM_ProcessStatus SPM_GetStatus(struct SPM_Process *proc){
+    return proc->CurrentStatus;
+}
+
+int _exec(struct SPM_Command *command, _Bool exit_immediately){
+    int return_value = 0;
+    return_value = system(command->command);
+    if(exit_immediately == true){
+        exit(return_value);
+    }
+    return return_value;
+}
+
+enum SPM_Result SPM_ChangeStatus(struct SPM_Process *proc, enum SPM_ProcessStatus new_status){
+    enum SPM_Result result = FAILURE;
+    pid_t proc_id = -1;
+    if(proc != NULL){
+        if(proc->CurrentStatus != new_status && (new_status != CREATED || new_status != UNK)){
+            switch(new_status){
+                case START:
+                    proc_id = fork();
+                    switch(proc_id){
+                        case 0:
+                            _exec(proc->start, true);
+                            break;
+                        case -1:
+                            fprintf(stderr, "Unable to start child!\n");
+                            break;
+                        default:
+                            proc->process_id = proc_id;
+                            proc->CurrentStatus = START;
+                            result = SUCCESS;
+                            break;
+                    }
+                    break;
+                case STOP:
+                    if(proc->stop != NULL){
+                        switch(_exec(proc->stop, false)){
+                            case 127:
+                            case -1:
+                                kill(proc->process_id, SIGKILL);
+                                break;
+                            default:
+                                for(uint8_t loop_count = 0; loop_count < 100; loop_count++){
+                                    switch(waitpid(proc->process_id, NULL, WNOHANG)){
+                                        case 0:
+                                            if(loop_count == 99){
+                                                kill(proc->process_id, SIGKILL);
+                                            }
+                                            break;
+                                        default:
+                                            result = SUCCESS;
+                                            loop_count = 100;
+                                    }
+                                }
+                        }
+                    }else{
+                        kill(proc->process_id, SIGKILL);
+                        result = SUCCESS;
+                    }
+                    break;
+                case RESTART:
+                    if(proc->restart != NULL){
+                        switch(proc_id = fork()){
+                            case 0:
+                                _exec(proc->start, true);
+                            case -1:
+                                fprintf(stderr, "Unable to start child!\n");
+                                break;
+                            default:
+                                proc->process_id = proc_id;
+                                proc->CurrentStatus = RESTART;
+                                result = SUCCESS;
+                        }
+                    }else{
+                        result = NORESTART;
+                    }
+                    break;
+            }
+        }else if(proc->CurrentStatus == new_status){
+            result = NOCHANGE;
+        }else{
+            result = BADSTATUS;
+        }
+    }
+    return result;
+}
+
+void SPM_CheckStatus(struct SPM_Process *proc){
+    enum SPM_ProcessStatus actual_status = UNK;
+    if(proc->CurrentStatus == UNK || proc->CurrentStatus != CREATED){
+        switch(waitpid(proc->process_id, NULL, WNOHANG)){
+            case 0:
+                proc->CurrentStatus = START;
+                break;
+            case -1:
+                if(proc->CurrentStatus != STOP || proc->CurrentStatus != CREATED){
+                    proc->CurrentStatus = UNK;
+                }
+                break;
+            default:
+                proc->CurrentStatus = STOP;
+                break;
+        }
+    }
+}
+
+pid_t SPM_GetPid(struct SPM_Process *proc){
+    return proc->process_id;
+}
