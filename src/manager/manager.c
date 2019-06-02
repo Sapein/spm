@@ -76,15 +76,19 @@ struct SPM_Process *SPM_Manager_GetNextProcess(struct SPM_Process *proc){
     if(proc != NULL){
         for(int i = 0; i <= TOTAL_MANAGED; i++){
             if(_process[i] != NULL && _process[i]->actual_process == proc){
-                if((i + 1) < TOTAL_MANAGED || _process[i] != NULL){
-                    out_proc = _process[i]->actual_process;
+                if((i + 1) < TOTAL_MANAGED && _process[i+1] != NULL){
+                    out_proc = _process[i+1]->actual_process;
+                    break;
                 }else{
                     out_proc = _process[0]->actual_process;
+                    break;
                 }
             }
         }
     }else{
-        out_proc = _process[0]->actual_process;
+        if(_process[0] != NULL){
+            out_proc = _process[0]->actual_process;
+        }
     }
     return out_proc;
 }

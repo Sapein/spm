@@ -5,7 +5,7 @@
 #include <stdio.h>
 #include <ctype.h>
 #include "configure.h"
-#include "process/user_procs.h"
+#include "user_processes/user_procs.h"
 #include "ipc.h"
 #include "manager/manager.h"
 #include "process/process.h"
@@ -49,13 +49,14 @@ int main(int argc, char *argv[]){
                         if((cmd = SPM_IPC_ReadFIFO(&size)) != NULL){
                             printf("%s\n", cmd);
                             if(strcmp(cmd, "stop") == 0){
-                               if(has_stopped == true){
+                               if(has_stopped == false){
                                    has_stopped = true;
                                    SPM_Manager_Stop();
                                }
                             }else if(strcmp(cmd, "restart") == 0){
                                 if(has_stopped == true){
                                     user_setup();
+                                    has_stopped = false;
                                     continue;
                                 }
                             }else if(strcmp(cmd, "shutdown") == 0){
@@ -66,7 +67,7 @@ int main(int argc, char *argv[]){
                         cmd = NULL;
                     }
                 }
-                if(!has_stopped){
+                if(has_stopped == false){
                     SPM_Manager_Stop();
                 }
                 SPM_IPC_DeleteFIFO();

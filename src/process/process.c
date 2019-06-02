@@ -197,7 +197,7 @@ enum SPM_Result SPM_ChangeStatus(struct SPM_Process *proc, enum SPM_ProcessStatu
 
 void SPM_CheckStatus(struct SPM_Process *proc){
     enum SPM_ProcessStatus actual_status = UNK;
-    if(proc->CurrentStatus != UNK){
+    if(proc->CurrentStatus != UNK && proc->CurrentStatus != CREATED){
         switch(waitpid(proc->process_id, NULL, WNOHANG)){
             case 0:
                 proc->CurrentStatus = START;
