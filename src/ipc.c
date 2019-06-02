@@ -96,6 +96,8 @@ char *SPM_IPC_ReadFIFO(uint32_t *size){
         }
         fclose(f);
         f = NULL;
+        close(fd);
+        fd = open(COMMUNICATION_FIFO_LOCATION, O_NONBLOCK, O_RDONLY);
     }
     *size = _size;
     return buff;
