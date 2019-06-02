@@ -1,3 +1,4 @@
 #!/bin/sh
 
-gcc -O0 -g main.c ipc.c process/process.c process/user_procs.c manager/manager.c
+OUTPUT="sprocessman"
+gcc main.c ipc.c process/process.c user_processes/user_procs.c manager/manager.c -o "${OUTPUT}"
