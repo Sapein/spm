@@ -1,5 +1,6 @@
 #include <stdlib.h>
 #include "manager.h"
+#include <stdio.h>
 #include "../configure.h"
 
 struct _Proc {
@@ -62,6 +63,8 @@ enum SPM_Manager_Results SPM_Manager_CheckProcess(struct SPM_Process *proc){
                         result = SUCCESS;
                     }
                 }
+            }else{
+                result = SUCCESS;
             }
             break;
         }
@@ -72,7 +75,7 @@ struct SPM_Process *SPM_Manager_GetNextProcess(struct SPM_Process *proc){
     struct SPM_Process *out_proc = NULL;
     if(proc != NULL){
         for(int i = 0; i <= TOTAL_MANAGED; i++){
-            if(_process[i]->actual_process == proc){
+            if(_process[i] != NULL && _process[i]->actual_process == proc){
                 if((i + 1) < TOTAL_MANAGED || _process[i] != NULL){
                     out_proc = _process[i]->actual_process;
                 }else{
