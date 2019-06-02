@@ -133,17 +133,21 @@ enum SPM_Result SPM_ChangeStatus(struct SPM_Process *proc, enum SPM_ProcessStatu
                     }
                     break;
                 case STOP:
-                    if(proc->stop != NULL){
+                    if(proc->stop != NULL && (proc->CurrentStatus != CREATED && proc->CurrentStatus != UNK)){
                         switch(_exec(proc->stop, false)){
                             case 127:
                             case -1:
-                                kill(proc->process_id, SIGKILL);
+                                if(proc->process_id > 1){
+                                    kill(proc->process_id, SIGKILL);
+                                }
+                                proc->CurrentStatus = STOP;
                                 break;
                             default:
                                 for(uint8_t loop_count = 0; loop_count < 100; loop_count++){
                                     switch(waitpid(proc->process_id, NULL, WNOHANG)){
                                         case 0:
-                                            if(loop_count == 99){
+                                            if(loop_count == 99 && proc->process_id > 1){
+                                                proc->CurrentStatus = STOP;
                                                 kill(proc->process_id, SIGKILL);
                                             }
                                             break;
@@ -153,8 +157,14 @@ enum SPM_Result SPM_ChangeStatus(struct SPM_Process *proc, enum SPM_ProcessStatu
                                     }
                                 }
                         }
-                    }else{
-                        kill(proc->process_id, SIGKILL);
+                    }else if(proc->CurrentStatus != CREATED && proc->CurrentStatus != UNK){
+                        if(proc->process_id > 1){
+                            kill(proc->process_id, SIGKILL);
+                            result = SUCCESS;
+                            proc->CurrentStatus = STOP;
+                        }
+                    }else if(proc->CurrentStatus == CREATED){
+                        proc->CurrentStatus = STOP;
                         result = SUCCESS;
                     }
                     break;
@@ -187,17 +197,19 @@ enum SPM_Result SPM_ChangeStatus(struct SPM_Process *proc, enum SPM_ProcessStatu
 
 void SPM_CheckStatus(struct SPM_Process *proc){
     enum SPM_ProcessStatus actual_status = UNK;
-    if(proc->CurrentStatus == UNK || proc->CurrentStatus != CREATED){
+    if(proc->CurrentStatus != UNK){
         switch(waitpid(proc->process_id, NULL, WNOHANG)){
             case 0:
                 proc->CurrentStatus = START;
                 break;
             case -1:
-                if(proc->CurrentStatus != STOP || proc->CurrentStatus != CREATED){
+                if(proc->CurrentStatus != STOP && proc->CurrentStatus != CREATED){
+                    proc->process_id = -1;
                     proc->CurrentStatus = UNK;
                 }
                 break;
             default:
+                proc->process_id = -1;
                 proc->CurrentStatus = STOP;
                 break;
         }

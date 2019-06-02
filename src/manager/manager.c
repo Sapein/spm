@@ -14,14 +14,16 @@ enum SPM_Manager_Results SPM_Manager_Init(void){
 void SPM_Manager_Stop(void){
     for(int i = 0; i <= TOTAL_MANAGED; i++){
         struct _Proc *proc = NULL;
-        proc = _process[i];
-        _process[i] = NULL;
-        SPM_CheckStatus(proc->actual_process);
-        SPM_ChangeStatus(proc->actual_process, STOP);
-        SPM_DestroyProcess(proc->actual_process);
-        proc->actual_process = NULL;
-        free(proc);
-        proc = NULL;
+        if(_process[i] != NULL){
+            proc = _process[i];
+            _process[i] = NULL;
+            SPM_CheckStatus(proc->actual_process);
+            SPM_ChangeStatus(proc->actual_process, STOP);
+            SPM_DestroyProcess(proc->actual_process);
+            proc->actual_process = NULL;
+            free(proc);
+            proc = NULL;
+        }
     }
 }
 enum SPM_Manager_Results SPM_Manager_AddProcess(struct SPM_Process *proc, enum SPM_ProcessStatus MaintainStatus){

@@ -3,6 +3,8 @@
 #include "../process/process.h"
 #include "../process/user_procs.h"
 
+void test_setup(void);
+
 void user_setup(void){
     test_setup();
 }

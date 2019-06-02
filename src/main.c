@@ -1,14 +1,16 @@
 #include <stdlib.h>
 #include <stdbool.h>
+#include <string.h>
 #include <strings.h>
 #include <stdio.h>
 #include <ctype.h>
 #include "configure.h"
 #include "process/user_procs.h"
+#include "ipc.h"
 #include "manager/manager.h"
 #include "process/process.h"
 
-int main(int *argc, char *argv[]){
+int main(int argc, char *argv[]){
     _Bool run = true;
     unsigned char *lower_str = NULL;
     uint32_t i = 0;
@@ -45,8 +47,7 @@ int main(int *argc, char *argv[]){
                         char *cmd = NULL;
                         uint32_t size = 0;
                         if((cmd = SPM_IPC_ReadFIFO(&size)) != NULL){
-                            printf("a\n"):
-                            printf("%s\n", cmd):
+                            printf("%s\n", cmd);
                             if(strcmp(cmd, "stop") == 0){
                                if(has_stopped == true){
                                    has_stopped = true;

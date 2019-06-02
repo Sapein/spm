@@ -8,6 +8,7 @@
 #include <sys/types.h>
 #include <sys/stat.h>
 #include <fcntl.h>
+#include <unistd.h>
 #include "configure.h"
 #include "ipc.h"
 #define LONGEST_COMMAND 10
@@ -74,7 +75,7 @@ char *SPM_IPC_ReadFIFO(uint32_t *size){
                 }
                 if(_size >= 18){
                     if((buff = realloc(buff, _size + 18)) != NULL){
-                        memset(buff += _size, 0, _size + 18);
+                        memset(buff + _size, 0, _size + 18);
                         _buff = buff;
                         _buff += _size;
                     }else{
