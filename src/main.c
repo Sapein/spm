@@ -31,18 +31,18 @@ int main(int argc, char *argv[]){
         }
     }else{
         if(SPM_IPC_ExistsFIFO() == true){
-            fprintf(stderr, "ERROR: FIFO at location %s exists!", COMMUNICATION_FIFO_LOCATION);
+            fprintf(stderr, "ERROR: FIFO at location %s exists!\n", COMMUNICATION_FIFO_LOCATION);
         }else{
             if(SPM_IPC_CreateFIFO() == true){
                 struct SPM_Process *proc = NULL;
                 _Bool has_stopped = false;
                 user_setup();
                 while(run){
-                    /* if((proc = SPM_Manager_GetNextProcess(proc)) != NULL){ */
-                    /*     if(SPM_Manager_CheckProcess(proc) == FAILURE){ */
-                    /*         fprintf(stderr, "ERROR: Unable to check process with pid %d", (int)(SPM_GetPid(proc))); */
-                    /*     } */
-                    /* } */
+                    if((proc = SPM_Manager_GetNextProcess(proc)) != NULL){
+                        if(SPM_Manager_CheckProcess(proc) == FAILURE){
+                            fprintf(stderr, "ERROR: Unable to check process with pid %d\n", (int)(SPM_GetPid(proc)));
+                        }
+                    }
                     if(SPM_IPC_CheckFIFO() == true){
                         char *cmd = NULL;
                         uint32_t size = 0;
@@ -62,9 +62,13 @@ int main(int argc, char *argv[]){
                                 run = false;
                             }
                         }
+                        free(cmd);
+                        cmd = NULL;
                     }
                 }
-                SPM_Manager_Stop();
+                if(!has_stopped){
+                    SPM_Manager_Stop();
+                }
                 SPM_IPC_DeleteFIFO();
             }else{
                 fprintf(stderr, "ERROR: Unable to create FIFO at location %s!\n", COMMUNICATION_FIFO_LOCATION);
