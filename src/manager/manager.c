@@ -10,7 +10,7 @@ struct _Proc {
 
 struct _Proc *_process[TOTAL_MANAGED] = {NULL};
 enum SPM_Manager_Results SPM_Manager_Init(void){
-    return SUCCESS;
+    return SUCCESS_;
 }
 void SPM_Manager_Stop(void){
     for(int i = 0; i <= TOTAL_MANAGED; i++){
@@ -28,7 +28,7 @@ void SPM_Manager_Stop(void){
     }
 }
 enum SPM_Manager_Results SPM_Manager_AddProcess(struct SPM_Process *proc, enum SPM_ProcessStatus MaintainStatus){
-    enum SPM_Manager_Results results = FAILURE;
+    enum SPM_Manager_Results results = FAIL;
     struct _Proc new_proc = {.actual_process = proc, .intended_status = MaintainStatus};
     struct _Proc *_proc = NULL;
     for(int i = 0; i <= TOTAL_MANAGED; i++){
@@ -38,7 +38,7 @@ enum SPM_Manager_Results SPM_Manager_AddProcess(struct SPM_Process *proc, enum S
                 _proc->actual_process = new_proc.actual_process;
                 _proc->intended_status = new_proc.intended_status;
                 _process[i] = _proc;
-                results = SUCCESS;
+                results = SUCCESS_;
             }
             break;
         }
@@ -47,7 +47,7 @@ enum SPM_Manager_Results SPM_Manager_AddProcess(struct SPM_Process *proc, enum S
 }
 
 enum SPM_Manager_Results SPM_Manager_CheckProcess(struct SPM_Process *proc){
-    enum SPM_Manager_Results result = FAILURE;
+    enum SPM_Manager_Results result = FAIL;
     enum SPM_ProcessStatus current_status = UNK;
     for(int i = 0; i <= TOTAL_MANAGED; i++){
         if(_process[i]->actual_process == proc){
@@ -56,15 +56,15 @@ enum SPM_Manager_Results SPM_Manager_CheckProcess(struct SPM_Process *proc){
             if(current_status != _process[i]->intended_status){
                 if(current_status == STOP){
                     if(SPM_ChangeStatus(proc, RESTART) != FAILURE){
-                        result = SUCCESS;
+                        result = SUCCESS_;
                     }
                 }else if(current_status == CREATED){
                     if(SPM_ChangeStatus(proc, START) != FAILURE){
-                        result = SUCCESS;
+                        result = SUCCESS_;
                     }
                 }
             }else{
-                result = SUCCESS;
+                result = SUCCESS_;
             }
             break;
         }
