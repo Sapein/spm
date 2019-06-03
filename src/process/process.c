@@ -24,7 +24,7 @@ struct SPM_Command *SPM_CreateCommand(uint32_t command_len, char command[]){
     struct SPM_Command *new_command = NULL;
     if((new_command = calloc(1, sizeof(struct SPM_Command) + (command_len * sizeof(char))) ) != NULL){
         new_command->size = command_len;
-        if(snprintf(new_command->command, command_len, "%s", command) < command_len - 1){
+        if(snprintf(new_command->command, command_len, "%s", command) < (int) command_len - 1){
             fprintf(stderr, "WARNING: Command %s is unable to be used because it is truncated!\n", command);
             free(new_command);
             new_command = NULL;
@@ -80,7 +80,7 @@ end:
     return new_proc;
 }
 
-struct SPM_Process *SPM_DestroyProcess(struct SPM_Process *proc){
+void SPM_DestroyProcess(struct SPM_Process *proc){
     if(proc != NULL){
         free(proc->start);
         if(proc->stop != NULL){
@@ -116,6 +116,10 @@ enum SPM_Result SPM_ChangeStatus(struct SPM_Process *proc, enum SPM_ProcessStatu
     if(proc != NULL){
         if(proc->CurrentStatus != new_status && (new_status != CREATED || new_status != UNK)){
             switch(new_status){
+                case CREATED:
+                    break;
+                case UNK:
+                    break;
                 case START:
                     proc_id = fork();
                     switch(proc_id){
@@ -173,6 +177,7 @@ enum SPM_Result SPM_ChangeStatus(struct SPM_Process *proc, enum SPM_ProcessStatu
                         switch(proc_id = fork()){
                             case 0:
                                 _exec(proc->start, true);
+                                break;
                             case -1:
                                 fprintf(stderr, "Unable to start child!\n");
                                 break;
@@ -196,7 +201,6 @@ enum SPM_Result SPM_ChangeStatus(struct SPM_Process *proc, enum SPM_ProcessStatu
 }
 
 void SPM_CheckStatus(struct SPM_Process *proc){
-    enum SPM_ProcessStatus actual_status = UNK;
     if(proc->CurrentStatus != UNK && proc->CurrentStatus != CREATED){
         switch(waitpid(proc->process_id, NULL, WNOHANG)){
             case 0:

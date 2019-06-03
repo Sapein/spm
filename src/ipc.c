@@ -88,7 +88,7 @@ char *SPM_IPC_ReadFIFO(uint32_t *size){
         *_buff = '\0';
         if(err){
             fprintf(stderr, "ERROR: Error occurred while reading! Error number is %d\n", err);
-            fprintf(stderr, "Please report this to the developer with the error code!\n", err);
+            fprintf(stderr, "Please report this to the developer with the error code!\n");
             _size = 0;
             free(buff);
             buff = NULL;
@@ -107,9 +107,9 @@ uint32_t SPM_IPC_WriteFIFO(char *input, uint32_t input_size){
     FILE *f = NULL;
     int written = 0;
     if((f = fopen(COMMUNICATION_FIFO_LOCATION, "w")) != NULL){
-        if((written = fprintf(f, "%s\n", input)) < input_size){
+        if((written = fprintf(f, "%s\n", input)) < (int) input_size){
             fprintf(stderr, "ERROR: Unable to write to FIFO!\n");
-        }else if(written - 1 > input_size){
+        }else if(written - 1 > (int) input_size){
             fprintf(stderr, "ERROR: written size %d is greater than input size %d!\n", written, (int)input_size);
         }
         fclose(f);

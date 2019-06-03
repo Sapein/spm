@@ -12,8 +12,7 @@
 
 int main(int argc, char *argv[]){
     _Bool run = true;
-    unsigned char *lower_str = NULL;
-    uint32_t i = 0;
+    char *lower_str = NULL;
     if(argc > 1){
         if(SPM_IPC_ExistsFIFO() == true){
             lower_str = argv[1];
@@ -39,7 +38,7 @@ int main(int argc, char *argv[]){
                 user_setup();
                 while(run){
                     if((proc = SPM_Manager_GetNextProcess(proc)) != NULL){
-                        if(SPM_Manager_CheckProcess(proc) == FAILURE){
+                        if(SPM_Manager_CheckProcess(proc) == FAIL){
                             fprintf(stderr, "ERROR: Unable to check process with pid %d\n", (int)(SPM_GetPid(proc)));
                         }
                     }
