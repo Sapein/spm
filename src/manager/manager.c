@@ -13,7 +13,7 @@ enum SPM_Manager_Results SPM_Manager_Init(void){
     return SUCCESS_;
 }
 void SPM_Manager_Stop(void){
-    for(int i = 0; i <= TOTAL_MANAGED; i++){
+    for(int i = 0; i < TOTAL_MANAGED; i++){
         struct _Proc *proc = NULL;
         if(_process[i] != NULL){
             proc = _process[i];
@@ -31,7 +31,7 @@ enum SPM_Manager_Results SPM_Manager_AddProcess(struct SPM_Process *proc, enum S
     enum SPM_Manager_Results results = FAIL;
     struct _Proc new_proc = {.actual_process = proc, .intended_status = MaintainStatus};
     struct _Proc *_proc = NULL;
-    for(int i = 0; i <= TOTAL_MANAGED; i++){
+    for(int i = 0; i < TOTAL_MANAGED; i++){
         if(_process[i] == NULL){
             _process[i] = &new_proc;
             if((_proc = calloc(1, sizeof(struct _Proc))) != NULL){
@@ -49,7 +49,7 @@ enum SPM_Manager_Results SPM_Manager_AddProcess(struct SPM_Process *proc, enum S
 enum SPM_Manager_Results SPM_Manager_CheckProcess(struct SPM_Process *proc){
     enum SPM_Manager_Results result = FAIL;
     enum SPM_ProcessStatus current_status = UNK;
-    for(int i = 0; i <= TOTAL_MANAGED; i++){
+    for(int i = 0; i < TOTAL_MANAGED; i++){
         if(_process[i]->actual_process == proc){
             SPM_CheckStatus(proc);
             current_status = SPM_GetStatus(proc);
@@ -74,7 +74,7 @@ enum SPM_Manager_Results SPM_Manager_CheckProcess(struct SPM_Process *proc){
 struct SPM_Process *SPM_Manager_GetNextProcess(struct SPM_Process *proc){
     struct SPM_Process *out_proc = NULL;
     if(proc != NULL){
-        for(int i = 0; i <= TOTAL_MANAGED; i++){
+        for(int i = 0; i < TOTAL_MANAGED; i++){
             if(_process[i] != NULL && _process[i]->actual_process == proc){
                 if((i + 1) < TOTAL_MANAGED && _process[i+1] != NULL){
                     out_proc = _process[i+1]->actual_process;
