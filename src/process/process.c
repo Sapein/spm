@@ -5,6 +5,7 @@
 #include <sys/types.h>
 #include <signal.h>
 #include <unistd.h>
+#include "../logging.h"
 #include "process.h"
 
 struct SPM_Command {
@@ -25,7 +26,7 @@ struct SPM_Command *SPM_CreateCommand(uint32_t command_len, char command[]){
     if((new_command = calloc(1, sizeof(struct SPM_Command) + (command_len * sizeof(char))) ) != NULL){
         new_command->size = command_len;
         if(snprintf(new_command->command, command_len, "%s", command) < (int) command_len - 1){
-            fprintf(stderr, "WARNING: Command %s is unable to be used because it is truncated!\n", command);
+            SPM_Log(ERROR, "COMMAND %s IS UNABLE TO BE USED BECAUSE IT IS TRUNCATED!\n", command);
             free(new_command);
             new_command = NULL;
         }
@@ -127,7 +128,7 @@ enum SPM_Result SPM_ChangeStatus(struct SPM_Process *proc, enum SPM_ProcessStatu
                             _exec(proc->start, true);
                             break;
                         case -1:
-                            fprintf(stderr, "Unable to start child!\n");
+                            SPM_Log(ERROR, "UNABLE TO START CHILD!\n");
                             break;
                         default:
                             proc->process_id = proc_id;
@@ -179,7 +180,7 @@ enum SPM_Result SPM_ChangeStatus(struct SPM_Process *proc, enum SPM_ProcessStatu
                                 _exec(proc->start, true);
                                 break;
                             case -1:
-                                fprintf(stderr, "Unable to start child!\n");
+                                SPM_Log(ERROR, "UNABLE TO START CHILD!\n");
                                 break;
                             default:
                                 proc->process_id = proc_id;

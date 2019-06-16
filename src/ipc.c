@@ -9,7 +9,7 @@
 #include <sys/stat.h>
 #include <fcntl.h>
 #include <unistd.h>
-#include "configure.h"
+#include "logging.h"
 #include "ipc.h"
 #define LONGEST_COMMAND 10
 
@@ -18,9 +18,7 @@ _Bool SPM_IPC_CreateFIFO(void){
     _Bool success = false;
     if(mkfifo(COMMUNICATION_FIFO_LOCATION, S_IRWXU) == 0 || errno == EEXIST){
         success = true;
-        printf("%d\n", fd);
         fd = open(COMMUNICATION_FIFO_LOCATION, O_NONBLOCK, O_RDONLY);
-        printf("%d\n", fd);
     }
     return success;
 }
@@ -70,7 +68,7 @@ char *SPM_IPC_ReadFIFO(uint32_t *size){
                 }else if(read == 0){
                     continue;
                 }else if(read > 1){
-                    fprintf(stderr, "ERROR: Read more characters than expecting! Expected 1, got %d!\n", (int)read);
+                    SPM_Log(WARN, "Read more characters than expecting! Expected 1, got %d!\n", (int)read);
                     break;
                 }
                 if(_size >= 18){
@@ -87,8 +85,8 @@ char *SPM_IPC_ReadFIFO(uint32_t *size){
         }
         *_buff = '\0';
         if(err){
-            fprintf(stderr, "ERROR: Error occurred while reading! Error number is %d\n", err);
-            fprintf(stderr, "Please report this to the developer with the error code!\n");
+            SPM_Log(ERROR, "ERROR OCCURRED WHILE READING! ERROR NUMBER IS %d\n", err);
+            SPM_Log(ERROR, "Please report this to the developer with the error code!\n");
             _size = 0;
             free(buff);
             buff = NULL;
@@ -108,9 +106,9 @@ uint32_t SPM_IPC_WriteFIFO(char *input, uint32_t input_size){
     int written = 0;
     if((f = fopen(COMMUNICATION_FIFO_LOCATION, "w")) != NULL){
         if((written = fprintf(f, "%s\n", input)) < (int) input_size){
-            fprintf(stderr, "ERROR: Unable to write to FIFO!\n");
+            SPM_Log(ERROR, "UNABLE TO WRITE TO FIFO!\n");
         }else if(written - 1 > (int) input_size){
-            fprintf(stderr, "ERROR: written size %d is greater than input size %d!\n", written, (int)input_size);
+            SPM_Log(WARN, "Written size %d is greater than input size %d!\n", written, (int)input_size);
         }
         fclose(f);
         f = NULL;
