@@ -14,6 +14,8 @@
 #define LONGEST_COMMAND 10
 
 int fd = 0;
+uint32_t _SPM_ReadFile(char **buffer);
+
 _Bool SPM_IPC_CreateFIFO(void){
     _Bool success = false;
     if(mkfifo(COMMUNICATION_FIFO_LOCATION, S_IRWXU) == 0 || errno == EEXIST){
@@ -46,51 +48,22 @@ _Bool SPM_IPC_ExistsFIFO(void){
 }
 
 char *SPM_IPC_ReadFIFO(uint32_t *size){
-    /* Commands
-     * --------
-     * STOP - Stops all processes
-     * RESTART - Restart all processes
-     * SHUTDOWN - Shutsdown
-     */
     FILE *f = NULL;
     char *buff = NULL;
-    char *_buff = NULL;
     uint32_t _size = 0;
     int err = 0;
     if((f = fdopen(fd, "r")) != NULL){
-        if((buff = calloc(18, sizeof(char))) != NULL){
-            uint32_t read = 0;
-            _buff = buff;
-            while(!(err = ferror(f)) && !feof(f) && *_buff != '\n'){
-                if((read = fread(_buff, sizeof(char), 1, f)) == 1 && *_buff != '\n'){
-                    _size++;
-                    _buff++;
-                }else if(read == 0){
-                    continue;
-                }else if(read > 1){
-                    SPM_Log(WARN, "Read more characters than expecting! Expected 1, got %d!\n", (int)read);
-                    break;
-                }
-                if(_size >= 18){
-                    if((buff = realloc(buff, _size + 18)) != NULL){
-                        memset(buff + _size, 0, _size + 18);
-                        _buff = buff;
-                        _buff += _size;
-                    }else{
-                        err = -111111;
-                        break;
-                    }
-                }
-            }
+        if((_size = _SPM_ReadFile(&buff)) == 0){
+            SPM_Log(ERROR, "ERROR OCCURRED DURING READING STRING! REALLOC() FAILED!\n");
+            goto err;
         }
-        *_buff = '\0';
         if(err){
             SPM_Log(ERROR, "ERROR OCCURRED WHILE READING! ERROR NUMBER IS %d\n", err);
             SPM_Log(ERROR, "Please report this to the developer with the error code!\n");
+err:
             _size = 0;
             free(buff);
             buff = NULL;
-            _buff = NULL;
         }
         fclose(f);
         f = NULL;
@@ -124,4 +97,38 @@ _Bool SPM_IPC_CheckFIFO(void){
         success = true;
     }
     return success;
+}
+
+uint32_t _SPM_ReadFile(char **buffer){
+    uint32_t size = 0;
+    uint32_t read = 0;
+    char *buff = NULL;
+    char *_buff = NULL;
+    if((buff = calloc(18, sizeof(char))) != NULL){
+        _buff = buff;
+        while(!(err = ferror(f)) && !feof(f) && *_buff != '\n'){
+            if((read = fread(_buff, sizeof(char), 1, f)) == 1 && *_buff != '\n'){
+                _size++;
+                _buff++;
+            }else if(read == 0){
+                continue;
+            }else if(read > 1){
+                SPM_Log(WARN, "Read more characters than expecting! Expected 1, got %d!\n", (int)read);
+                break;
+            }
+            if(_size >= 18){
+                if((buff = realloc(buff, _size + 18)) != NULL){
+                    memset(buff + _size, 0, _size + 18);
+                    _buff = buff;
+                    _buff += _size;
+                }else{
+                    size = 0;
+                    break;
+                }
+            }
+        }
+        *_buff = '\0';
+        *buffer = buff;
+    }
+    return size;
 }
