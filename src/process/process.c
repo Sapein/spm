@@ -118,9 +118,13 @@ enum SPM_Result SPM_ChangeStatus(struct SPM_Process *proc, enum SPM_ProcessStatu
         if(proc->CurrentStatus != new_status && (new_status != CREATED || new_status != UNK)){
             switch(new_status){
                 case CREATED:
-                    break;
                 case UNK:
                     break;
+                case RESTART:
+                    if(proc->restart == NULL){
+                        result = NORESTART;
+                        break;
+                    }
                 case START:
                     proc_id = fork();
                     switch(proc_id){
@@ -171,24 +175,6 @@ enum SPM_Result SPM_ChangeStatus(struct SPM_Process *proc, enum SPM_ProcessStatu
                     }else if(proc->CurrentStatus == CREATED){
                         proc->CurrentStatus = STOP;
                         result = SUCCESS;
-                    }
-                    break;
-                case RESTART:
-                    if(proc->restart != NULL){
-                        switch(proc_id = fork()){
-                            case 0:
-                                _exec(proc->start, true);
-                                break;
-                            case -1:
-                                SPM_Log(ERROR, "UNABLE TO START CHILD!\n");
-                                break;
-                            default:
-                                proc->process_id = proc_id;
-                                proc->CurrentStatus = RESTART;
-                                result = SUCCESS;
-                        }
-                    }else{
-                        result = NORESTART;
                     }
                     break;
             }
