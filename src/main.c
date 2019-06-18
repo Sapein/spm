@@ -21,6 +21,26 @@ int main(int argc, char *argv[]){
     char *cmd = NULL;
     uint32_t size = 0;
     SPM_LogStart();
+#if (DOUBLE_FORK == true)
+    switch(pid_t pid = fork()){
+        case -1:
+            SPM_Log(ERROR, "Unable to double-fork! exiting!\n");
+            exit(1);
+            break;
+        case 0:
+            switch(pid_t pid = fork()){
+                case -1:
+                    SPM_Log(ERROR, "Unable to double-fork! exiting!\n");
+                    exit(1);
+                case 0:
+                    break;
+                default
+                    exit(0);
+            }
+        default:
+            exit(0);
+    }
+#endif
     if(CommandParse(argc, argv) == true){
         if(Initalize() == true){
             while(run){
