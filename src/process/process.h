@@ -12,6 +12,7 @@ struct SPM_Command *SPM_CreateCommand(uint32_t command_len, char command[]);
 void SPM_DestroyCommand(struct SPM_Command *);
 
 struct SPM_Process *SPM_CreateProcess(struct SPM_Command *start, struct SPM_Command *stop, struct SPM_Command *restart);
+struct SPM_Process *SPM_NameProcess(char *name, uint32_t name_len, struct SPM_Process *proc);
 void SPM_DestroyProcess(struct SPM_Process *Proc);
 
 void SPM_CheckStatus(struct SPM_Process *proc);
