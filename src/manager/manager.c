@@ -52,7 +52,7 @@ enum SPM_Manager_Results SPM_Manager_CheckProcess(struct SPM_Process *proc){
     enum SPM_Manager_Results result = FAIL;
     enum SPM_ProcessStatus current_status = UNK;
     for(int i = 0; i < TOTAL_MANAGED; i++){
-        if(if_process[i] != NULL && _process[i]->actual_process == proc){
+        if(_process[i] != NULL && _process[i]->actual_process == proc){
             SPM_CheckStatus(proc);
             current_status = SPM_GetStatus(proc);
             if(current_status != _process[i]->intended_status){
