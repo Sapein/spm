@@ -21,6 +21,7 @@ int main(int argc, char *argv[]){
     char *cmd = NULL;
     uint32_t size = 0;
     SPM_LogStart();
+
 #if (DOUBLE_FORK == true)
     switch(pid_t pid = fork()){
         case -1:
@@ -41,6 +42,7 @@ int main(int argc, char *argv[]){
             exit(0);
     }
 #endif
+
     if(CommandParse(argc, argv) == true){
         if(Initalize() == true){
             while(run){
@@ -61,6 +63,18 @@ int main(int argc, char *argv[]){
                                 user_setup();
                                 has_stopped = false;
                                 continue;
+                            }else{
+                                struct SPM_Process *p = proc;
+                                enum SPM_ProcessStatus res = SUCCESS;
+                                do{
+                                    if((res = SPM_ChangeStatus(p, RESTART)) != FAILURE || res != NOMEM){
+                                        SPM_Log(WARN, "UNABLE TO RESTART PROCESS WITH PID %d\n", SPM_GetPid(proc));
+                                    }else if(res == NORESTART){
+                                        SPM_Log(INFO, "PROCESS WITH PID %d HAS NO RESTART COMMAND!\n", SPM_GetPid(proc));
+                                    }
+                                    p = SPM_Manager_GetNextProcess(p);
+                                }while(p != proc);
+                                p = NULL;
                             }
                         }else if(strcmp(cmd, "shutdown") == 0){
                             run = false;
