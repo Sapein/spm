@@ -231,6 +231,35 @@ pid_t SPM_GetPid(struct SPM_Process *proc){
 #if (NAMED_PROCS != true)
 #pragma GCC diagnostic ignored "-Wunused-parameter"
 #endif
+uint32_t SPM_GetName(struct SPM_Process *proc, char *name_out){
+#pragma GCC diagnostic pop
+#if (NAMED_PROCS == true)
+    uint32_t name_len = 0;
+    if(proc != NULL){
+        if(proc->name_len != strlen(proc->name)){
+            if(proc->name_len > strlen(proc->name)){
+                name_len = proc->name_len;
+            }else{
+                name_len = strlen(proc->name);
+            }
+        }
+        if(name_out != NULL && name_len > 0){
+            if(strncpy(name_out, proc->name, name_len) == NULL){
+                SPM_Log(ERROR, "Unable to copy name %s to name_out!\n", proc->name);
+                name_out = memset(name_out, 0, sizeof(char));
+            }
+        }
+    }
+    return name_len;
+#else
+    return 0;
+#endif
+}
+
+#pragma GCC diagnostic push
+#if (NAMED_PROCS != true)
+#pragma GCC diagnostic ignored "-Wunused-parameter"
+#endif
 struct SPM_Process *SPM_NameProcess(char *name, uint32_t name_len, struct SPM_Process *proc){
 #pragma GCC diagnostic pop
 #if (NAMED_PROCS == true)

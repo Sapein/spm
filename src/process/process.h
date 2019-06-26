@@ -18,5 +18,6 @@ void SPM_DestroyProcess(struct SPM_Process *Proc);
 void SPM_CheckStatus(struct SPM_Process *proc);
 enum SPM_ProcessStatus SPM_GetStatus(struct SPM_Process *proc);
 enum SPM_Result SPM_ChangeStatus(struct SPM_Process *proc, enum SPM_ProcessStatus newstatus);
+uint32_t SPM_GetName(struct SPM_Process *proc, char *name_out);
 pid_t SPM_GetPid(struct SPM_Process *proc);
 #endif
