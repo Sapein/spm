@@ -5,6 +5,8 @@
 #include <sys/types.h>
 #include <signal.h>
 #include <unistd.h>
+#include <string.h>
+#include <strings.h>
 #include "../configure.h"
 #include "../logging.h"
 #include "process.h"
@@ -263,14 +265,13 @@ uint32_t SPM_GetName(struct SPM_Process *proc, char *name_out){
 struct SPM_Process *SPM_NameProcess(char *name, uint32_t name_len, struct SPM_Process *proc){
 #pragma GCC diagnostic pop
 #if (NAMED_PROCS == true)
-    struct SPM_Process *_named_process = NULL;
     struct SPM_Process *named_process = NULL;
     if(name != NULL && name_len > 0){
         if((named_process = calloc(1, sizeof(struct SPM_Process) + (name_len * sizeof(char))) ) != NULL){
             if(memcpy(named_process, proc, sizeof(struct SPM_Process)) != NULL){
                 named_process->name_len = name_len;
                 if(strncpy(named_process->name, name, name_len) != NULL){
-                    *named_process = NULL;
+                    named_process = NULL;
                 }
             }else{
                 free(named_process);

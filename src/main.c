@@ -4,6 +4,8 @@
 #include <stdio.h>
 #include <string.h>
 #include <strings.h>
+#include <sys/types.h>
+#include <unistd.h>
 
 #include "logging.h"
 #include "ipc.h"
@@ -29,23 +31,27 @@ int main(int argc, char *argv[]){
 #endif
 
 #if (DOUBLE_FORK == true)
-    switch(pid_t pid = fork()){
-        case -1:
-            SPM_Log(ERROR, "Unable to double-fork! exiting!\n");
-            exit(1);
-            break;
-        case 0:
-            switch(pid_t pid = fork()){
-                case -1:
-                    SPM_Log(ERROR, "Unable to double-fork! exiting!\n");
-                    exit(1);
-                case 0:
-                    break;
-                default
-                    exit(0);
-            }
-        default:
-            exit(0);
+    {
+        pid_t pid = 0;
+        switch((pid = fork())){
+            case -1:
+                SPM_Log(ERROR, "Unable to double-fork! exiting!\n");
+                exit(1);
+                break;
+            case 0:
+                switch(pid = fork()){
+                    case -1:
+                        SPM_Log(ERROR, "Unable to double-fork! exiting!\n");
+                        exit(1);
+                    case 0:
+                        break;
+                    default:
+                        exit(0);
+                }
+                break;
+            default:
+                exit(0);
+        }
     }
 #endif
 
@@ -66,12 +72,12 @@ int main(int argc, char *argv[]){
                         if(strncmp(cmd, "stop", strlen("stop")) == 0){
                             if(strcmp(cmd, "stop") != 0){
                                 if((desired_proc_name = calloc(size - strlen("stop"), sizeof(char))) != NULL){
-                                    if(sscanf(cmd, "stop %s", &proc_name) == strlen(cmd)){
+                                    if(sscanf(cmd, "stop %s", proc_name) == (int)strlen(cmd)){
                                         if((name_len = SPM_GetName(proc, NULL)) > 0){
                                             do{
                                                 if((proc_name = calloc(name_len, sizeof(char))) != NULL){
                                                     SPM_GetName(_proc, proc_name);
-                                                    if(strlen(proc_name, desired_proc_name) == 0){
+                                                    if(strcmp(proc_name, desired_proc_name) == 0){
                                                         SPM_ChangeStatus(_proc, STOP);
                                                         free(proc_name);
                                                         proc_name = NULL;
@@ -82,7 +88,7 @@ int main(int argc, char *argv[]){
                                                     proc_name = NULL;
                                                 }
                                                 _proc = SPM_Manager_GetNextProcess(_proc);
-                                            }while(_proc != proc)
+                                            }while(_proc != proc);
                                         }
                                     }
                                     free(desired_proc_name);
