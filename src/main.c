@@ -100,7 +100,7 @@ int main(int argc, char *argv[]){
                                 continue;
                             }else{
                                 struct SPM_Process *p = proc;
-                                enum SPM_ProcessStatus res = SUCCESS;
+                                enum SPM_Result res = SUCCESS;
                                 do{
                                     if((res = SPM_ChangeStatus(p, RESTART)) != FAILURE || res != NOMEM){
                                         SPM_Log(WARN, "UNABLE TO RESTART PROCESS WITH PID %d\n", SPM_GetPid(proc));
