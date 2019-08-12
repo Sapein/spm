@@ -15,6 +15,7 @@
 
 _Bool CommandParse(int argc, char *argv[]);
 _Bool Initalize(void);
+void DoubleFork(void);
 
 int main(int argc, char *argv[]){
     _Bool run = true;
@@ -30,30 +31,7 @@ int main(int argc, char *argv[]){
     struct SPM_Process *_proc = NULL;
 #endif
 
-#if (DOUBLE_FORK == true)
-    {
-        pid_t pid = 0;
-        switch((pid = fork())){
-            case -1:
-                SPM_Log(ERROR, "Unable to double-fork! exiting!\n");
-                exit(1);
-                break;
-            case 0:
-                switch(pid = fork()){
-                    case -1:
-                        SPM_Log(ERROR, "Unable to double-fork! exiting!\n");
-                        exit(1);
-                    case 0:
-                        break;
-                    default:
-                        exit(0);
-                }
-                break;
-            default:
-                exit(0);
-        }
-    }
-#endif
+    DoubleFork();
 
     if(CommandParse(argc, argv) == true){
         if(Initalize() == true){
@@ -175,6 +153,33 @@ _Bool Initalize(void){
         }
     }
     return success;
+}
+
+void DoubleFork(void){
+#if (DOUBLE_FORK == true)
+    pid_t pid = 0;
+    switch((pid = fork())){
+        case -1:
+            SPM_Log(ERROR, "Unable to double-fork! exiting!\n");
+            exit(1);
+            break;
+        case 0:
+            switch(pid = fork()){
+                case -1:
+                    SPM_Log(ERROR, "Unable to double-fork! exiting!\n");
+                    exit(1);
+                case 0:
+                    break;
+                default:
+                    exit(0);
+            }
+            break;
+        default:
+            exit(0);
+    }
+#else
+    ;
+#endif
 }
 
 #if (IND_STOP == true && NAMED_PROCS != true)
