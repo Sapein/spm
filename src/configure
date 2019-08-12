@@ -1,0 +1,555 @@
+#!/bin/sh
+
+# Set IFS to default
+unset IFS
+POSIXLY_CORRECT="set"
+
+
+# Constants
+_ORIGIN="$(pwd)"
+_SEN="SENTINAL"
+DNE=127
+TRUE=0
+FALSE=1
+
+# Configurable Constants
+_RECURSE_LIMIT="${_RECURSE_LIMIT:-100}"
+_EXCLUDE="${_EXCLUDE:-}"
+
+# Global Variables
+_CC="cc"
+_DEBUG="false"
+_RETURN_VARIABLE="${_SEN}"
+_MAKEFILE="Makefile"
+_FOUND_FILES=""
+
+_SRC_DIR="${0}"
+_BUILD_DIR=""
+
+_CHECK_CRITERION="false"
+_HAS_CRITERION="false"
+_LOCAL_CRITERION="${_LOCAL_CRITERION:-false}"
+_LOCAL_CRITERION_HEADERS="${_LOCAL_CRITERION_HEADERS:-}"
+_LOCAL_CRITERION_LIB="${_LOCAL_CRITERION_LIB:-}"
+
+### Pathhandling Section
+turn_to_full() {
+    path_passed="${1}"
+    path=""
+    if [ "$(dirname "${path_passed}")" = "." ] && [ "$(basename "${path_passed}")" != "." ] && [ "$(basename "${path_passed}")" != ".." ]
+    then
+        path_passed="./${1}"
+    fi
+    IFS="/"
+    for d in $path_passed
+    do
+        if [ "${d}" = "." ]
+        then
+            d="$(pwd)"
+        elif [ "${d}" = ".." ]
+        then
+            d="$(cd .. && pwd)"
+        fi
+        path="${path:+${path}/}${d}"
+    done
+    unset IFS
+    path=$(echo "/${path}" | sed -e 's?//?/?')
+    _RETURN_VARIABLE="${path}"
+}
+
+### End Pathhandling
+
+### Begin Arguments Section
+
+help() {
+    # This is the help function
+    printf "Options\n"
+    printf "=========\n"
+    printf "\t-h/--help: Show this menu.\n"
+    # printf "\t-t/--testing=(enable/disable): Enable/Disable the testing target. (-t = enable) (default = disable)\n"
+    printf "\t-d/--debug: Turn on debug build targets. (Default off)\n"
+    printf "\t-b/--build=[build_directory]: Allows out-of-source building.\n"
+    printf "\t-s/--src=[source directory]: Allows out-of-source building starting at the specified directory.\n"
+    printf "\t-c/--compiler=[c compiler]: Allows specifying the C Compiler. Using CC=[compiler] will override this. (This skips over checking for C compiler).\n"
+    printf "\t-o/--output=[makefile]: Set the Makefile Output\n"
+}
+
+parse_arguments() {
+    _count=0
+    for arg in "$@"
+    do
+        case "$arg" in
+            -b=*|--build=*)
+                arg="$(echo "${arg}" | sed -e 's?.*=\(\)?\1?')"
+                if [ -n "${arg}" ]
+                then
+                    turn_to_full "${arg}"
+                    _BUILD_DIR="${_RETURN_VARIABLE}"
+                    _RETURN_VARIABLE="${_SEN}"
+                    _EXCLUDE="${_EXCLUDE:+${_EXCLUDE} }${_BUILD_DIR} $(basename "${_BUILD_DIR}")"
+                fi
+                ;;
+            -s=*|--source=*)
+                arg="$(echo "${arg}" | sed -e 's?.*=\(\)?\1?')"
+                if [ -n "${arg}" ]
+                then
+                    turn_to_full "${arg}"
+                    _SRC_DIR="${_RETURN_VARIABLE}"
+                    _RETURN_VARIABLE="${_SEN}"
+                    _EXCLUDE="${_EXCLUDE:+${_EXCLUDE} }${_SRC_DIR} $(basename "${_SRC_DIR}")"
+                fi
+                ;;
+            -o=*|--output=*)
+                _MAKEFILE=$(echo "${arg}" | sed -e 's?.*=\(\)?\1?')
+                if [ -z "$(echo "${arg}" | sed -e 's?.*=\(\)?\1?')" ]
+                then
+                    printf "The name provided by %s is invalid!\n" "${_MAKEFILE}"
+                    exit 13
+                fi
+                _count=$(((_count + 1)))
+                ;;
+            -c=*|--compiler=*)
+                if [ -z "${CC}" ]
+                then
+                    _CC=$(echo "${arg}" | sed -e 's?.*=\(\)?\1?')
+                    if ! check_for_cc "${_CC}"
+                    then
+                        printf "The compiler given can't be found! %s was given! Are you sure this is the right address?\n" "${_CC}"
+                        exit 7
+                    fi
+                fi
+                _count=$(((_count + 1)))
+                ;;
+            -d|--debug)
+                _DEBUG="true"
+                _count=$(((_count + 1)))
+                ;;
+            -h*|--help*)
+                help
+                exit 0
+                ;;
+            *)
+                _count=$(((_count + 1)))
+                ;;
+        esac
+    done
+
+    if [ "${_count}" -gt 0 ]
+    then
+        printf "Phew, you passed a lot of arguments...why did you need %s?!\n" "${_count}"
+    else
+        printf "Stock Configuration then, alright...\n"
+    fi
+}
+
+### End Arguments
+
+### Requirements Section
+
+_OUTPUT="false"
+check_for_cc() {
+    # Checks and make sure we have a C compiler that.
+    "${_OUTPUT}" && printf "First checking your compiler...\n"
+    if [ -z "${1}" ]
+    then
+        cc > /dev/null 2>&1
+        EV="${?}"
+    else
+        ${1} > /dev/null 2>&1
+        EV="${?}"
+    fi
+    if [ "${EV}" -eq "${DNE}" ]
+    then
+        [ -z "${1}" ] && "${_OUTPUT}" && printf "Weird...alright well let's check for alternatives!\n"
+        [ -z "${1}" ] && check_for_cc "gcc" && return 0    # Quickly check to see if GCC is installed.
+        [ -z "${1}" ] && check_for_cc "clang" && return 0  # Quickly check to see if Clang is installed.
+        [ -z "${1}" ] && check_for_cc "tcc" && return 0    # Quickly check to see if tcc is installed.
+        [ -n "${1}" ] &&  "${_OUTPUT}" && printf "No you don't have %s...\n" "${1}"
+        [ -z "${1}" ] &&  "${_OUTPUT}" && printf "Huh...\n"
+        return 1
+    else
+        if [ -n "${1}" ]
+        then
+            _CC="${1}"
+        fi
+        return 0
+    fi
+}
+
+check_for_c99() {
+    # Checks to see if C99 is supported by the C Compiler
+     "${_OUTPUT}" && printf "It's not just enough to have a C Compiler...you have to have a C99 compiler!\n"
+    printf "#include <stdbool.h>\nint main(void){return 0;}" | cc -x c -
+    EV="${?}"
+    rm a.out || true
+    if [ "${EV}" -eq  ${TRUE} ]
+    then
+        return 0
+    else
+        return 1
+    fi
+}
+
+check_for_make() {
+    # Checks to see if Make is installed or not
+    "${_OUTPUT}" && printf "If you don't know how to make, you can't pass...\n"
+    make -s notarget > /dev/null 2>&1
+    if [ "${?}" -eq "${DNE}" ]
+    then
+        return 1
+    else
+        return 0
+    fi
+}
+
+
+check_requirements() {
+    # This Checks For the requirements
+    # Requirements are things that *MUST* exist for building.
+    printf "Let's make sure you have everything needed to build the most basic version...\n"
+
+    has_cc="${FALSE}"
+    has_c99="${FALSE}"
+    has_make="${FALSE}"
+
+    if [ -z "${CC}" ]
+    then
+        check_for_cc && has_cc="true" && check_for_c99 && has_c99="true" && check_for_make && has_make="true"
+    else
+        check_for_cc "${CC}" && has_cc="true" && check_for_c99 && has_c99="true" && check_for_make && has_make="true"
+    fi
+
+    if [ "${?}" -eq "${TRUE}" ]
+    then
+        printf "Oh hey, looks like you are good to go!\n"
+    else
+        if "${has_cc}" && "${has_c99}" && "${has_make}"
+        then
+            printf "Somehow, you've managed to not compile...well done...\n"
+            exit 10
+        elif "${has_cc}" && "${has_c99}" && ! "${has_make}"
+        then
+            printf "You don't have make...somehow. I guess you haven't compiled software before!\n"
+            exit 9
+        elif "${has_cc}" && ! "${has_c99}"
+        then
+            # shellcheck disable=SC2012
+            _CC=$(ls -dl "$(command -v cc)" | sed -e 's?.*-> \(\)?\1?')
+            printf "You don't have a C99 compatible Compiler! Your compiler %s doesn't support it! Perhaps use TCC, GCC, or Clang?\n" "${_CC}"
+            exit 8
+        elif ! "${has_cc}"
+        then
+            printf "You don't have a C Compiler at all...no tcc, no gcc, no clang, not even a cc! I wonder how you even get by...\n"
+            exit 7
+        elif ! "${has_cc}" && [ -n "${CC}" ]
+        then
+            printf "The Compiler you gave me with CC (which is %s) doesn't even work! Are you sure you said it right?\n" "${CC}"
+            exit 7
+        else
+            printf "I...I'm speechless...I don't know you you got this, but you should feel achieved!\n"
+            exit 6
+        fi
+    fi
+    _OUTPUT="false"
+}
+
+### End Requirements
+
+### Options Section
+
+check_for_criterion() {
+    # Checks to see if Criterion is installed or not
+    if [ -n  "${_LOCAL_CRITERION_LIB}" ] && [ -n "${_LOCAL_CRITERION_HEADERS}" ]
+    then
+        _additional="-I${_LOCAL_CRITERION_HEADERS}/ -L${_LOCAL_CRITERION_LIB}/ -lcriterion"
+    else
+        _additional="-lcriterion"
+    fi
+    printf "#include <criterion/criterion.h>\nint main(void){return 0;}" | cc -x c - ${_additional}
+    EV="${?}"
+    rm a.out || true
+    if [ "${EV}" -eq  ${TRUE} ]
+    then
+        _HAS_CRITERION="true"
+        return 0
+    else
+        printf '#include "criterion/criterion.h"\nint main(void){return 0;}' | cc -x c - ${_additional}
+        EV="${?}"
+        rm a.out || true
+        if [ "${EV}" -eq "${TRUE}" ]
+        then
+            _HAS_CRITERION="true"
+            return 0
+        else
+            return 1
+        fi
+    fi
+}
+
+check_options() {
+    # Checks and Sets Build Options
+    if "${_CHECK_CRITERION}"
+    then
+        printf "Checking to see if we can actually test...\n"
+        if check_for_criterion
+        then
+            printf "Oh hey, you like taking tests! Criterion has been found, you've enabled it so we're going to throw it into the makefile for usage...\n"
+        else
+            printf "Awww, you haven't installed Criterion :< . Oh well, we'll still continue, just make it reachable next time!\n"
+        fi
+    fi
+    return 0
+}
+
+### End Options
+
+### Makefile Section
+
+is_excluded() {
+    file="${1}"
+    directory="${2}"
+    for excluded in ${_EXCLUDE}
+    do
+        if [ "$(basename "${file}")" = "${excluded}" ]
+        then
+            return "${TRUE}"
+        fi
+    done
+    return "${FALSE}"
+}
+
+_RCOUNT=0
+_echeck(){
+    if [ "${_RCOUNT}" -ge "${_RECURSE_LIMIT}" ]
+    then
+        return
+    else
+        _RCOUNT=$(((_RCOUNT + 1)))
+    fi
+}
+
+recurse_in_dir() {
+    directory="${1}"
+    callback="${2}"
+    turn_to_full "${directory}"
+    directory="${_RETURN_VARIABLE}"
+    _RETURN_VARIABLE="${_SEN}"
+
+    _echeck
+    for f in "${directory}"/*
+    do
+        # Check for exclusions
+        if ! is_excluded "${f}" "${directory}"
+        then
+            if [ -d "${f}" ]
+            then
+                recurse_in_dir "${f}/" "${callback}"
+            else
+                "${callback}" "${f}"
+            fi
+        fi
+    done
+}
+
+add_files() {
+    file="${1}"
+    IFS="."
+    is_c="false"
+    for name_section in ${file}
+    do
+        if [ "${name_section}" = "c" ]
+        then
+            is_c="true"
+        fi
+        if [ "${name_section}" != "c" ] && "${is_c}"
+        then
+            is_c="false"
+        fi
+    done
+    unset IFS
+    if "${is_c}"
+    then
+        _FOUND_FILES="${_FOUND_FILES:+${_FOUND_FILES} }${file}"
+    fi
+}
+
+find_files() {
+    printf "Let's gather all of our files...\n"
+    recurse_in_dir "${_SRC_DIR}" add_files
+}
+
+get_object_insource() {
+    file="${1}"
+    additional="${2:-}"
+    file=$(echo "${file}" | sed -e 's?\.c??')
+    printf "%s.o%s" "${file}" "${additional}"
+}
+
+create_insource() {
+    for f in ${_FOUND_FILES}
+    do
+        if [ "$(dirname ${f})" = "${_SRC_DIR}" ]
+        then
+            get_object_insource "$(basename "${f}")" " ">> "${_MAKEFILE}"
+        else
+            get_object_insource "$(echo "${f}" | sed -e 's?'${_SRC_DIR}/'??')"  " ">> "${_MAKEFILE}"
+        fi
+    done
+    printf "\n\t" >> "${_MAKEFILE}"
+    # shellcheck disable=2016
+    printf '$(CC) $(LDFLAGS) -o $(PROJECT_NAME) ' >> "${_MAKEFILE}"
+    for f in ${_FOUND_FILES}
+    do
+        if [ "$(dirname ${f})" = "${_SRC_DIR}" ]
+        then
+            get_object_insource "$(basename "${f}")" " ">> "${_MAKEFILE}"
+        else
+            get_object_insource "$(echo "${f}" | sed -e 's?'${_SRC_DIR}/'??')"  " ">> "${_MAKEFILE}"
+        fi
+    done
+    # shellcheck disable=2016
+    printf '$(LDLIBS)\n\n' >> "${_MAKEFILE}"
+
+    #XXX - This will probably not work in the future, so this should change
+    printf "Just to let you know, I'm going to be doing a little bit of a hack, hopefully I work and don't break...\n"
+    for f in ${_FOUND_FILES}
+    do
+        if [ "$(dirname ${f})" = "${_SRC_DIR}" ]
+        then
+            f="$(basename "${f}")"
+        else
+            f="$(echo "${f}" | sed -e 's?'${_SRC_DIR}/'??')"
+        fi
+        get_object_insource "${f}" ": ${f}" >> "${_MAKEFILE}"
+        printf "\n\n" >> "${_MAKEFILE}"
+    done
+    printf "You might need to fix it up if this won't compile, and let me know so I can fix it...\n"
+
+    printf "clean:\n\t" >> "${_MAKEFILE}"
+    for f in ${_FOUND_FILES}
+    do
+        if [ "$(dirname ${f})" = "${_SRC_DIR}" ]
+        then
+            f="$(basename "${f}")"
+        else
+            f="$(echo "${f}" | sed -e 's?'${_SRC_DIR}/'??')"
+        fi
+        f=$(echo "${f}" | sed -e 's?\.c??')
+        printf "rm %s.o || true\n\t" "${f}" >> "${_MAKEFILE}"
+    done
+}
+
+get_object_outsource() {
+    file="${1}"
+    additional="${2:-}"
+    file=$(echo "${file}" | sed -e 's?\.c??')
+    printf "%s%s.o%s" "${_BUILD_DIR}" "${file}" "${additional}"
+}
+
+create_outsource() {
+    {
+        for f in ${_FOUND_FILES}
+        do
+            get_object_outsource "/$(basename "${f}")" " "
+        done
+        printf "\n\t"
+
+        # shellcheck disable=2016
+        printf '$(CC) $(LDFLAGS) -o $(PROJECT_NAME) '
+        for f in ${_FOUND_FILES}
+        do
+            get_object_outsource "/$(basename "${f}")" " "
+        done
+        # shellcheck disable=SC2016
+        printf '$(LDLIBS)\n\n'
+    } >> "${_MAKEFILE}"
+
+    #XXX - This will probably not work in the future, so this should change
+    printf "Just to let you know, I'm going to be doing a little bit of a hack, hopefully I work and don't break...\n"
+    {
+        for f in ${_FOUND_FILES}
+        do
+            get_object_outsource "/$(basename "${f}")" ": ${f}"
+            # shellcheck disable=SC2016
+            printf '\n\t$(CC) $(CFLAGS) -c %s\n\n' "${f}"
+        done
+    } >> "${_MAKEFILE}"
+    printf "You might need to fix it up if this won't compile, and let me know so I can fix it...\n"
+
+    {
+        printf "clean:\n\t" >> "${_MAKEFILE}"
+        for f in ${_FOUND_FILES}
+        do
+            f=$(echo "${f}" | sed -e 's?\.c??')
+            printf "rm %s%s.o || true\n\t" "${_BUILD_DIR}" "${f}"
+        done
+    } >> "${_MAKEFILE}"
+}
+
+create_makefile() {
+    _cflags="-Wall -Wpedantic -D_POSIX_C_SOURCE=200809 -std=c11 -Wextra"
+    _ldlibs="-lm"
+    _ldflags="-g -D_POSIX_C_SOURCE=200809 -std=c11"
+    _prefix="/usr/local"
+
+    find_files
+    printf "Let's actually make our Makefile now....\n"
+    {
+        printf ".POSIX:\nPROJECT_NAME=spman\n"
+        if [ -n "${CC}" ]
+        then
+            printf "CC = %s\n" "${CC}"
+        else
+            printf "CC = %s\n" "${_CC}"
+        fi
+        if "${_DEBUG}"
+        then
+            _cflags="-g -O0 ${_cflags} -Werrors"
+        fi
+        if "${_LOCAL_CRITERION}" && "${_HAS_CRITERION}"
+        then
+            _cflags="${_cflags} -I${_LOCAL_CRITERION_HEADERS} -L${_LOCAL_CRITERION_LIB}"
+        fi
+        printf "CFLAGS = %s\n" "${_cflags}"
+        printf "LDLIBS= %s\n" "${_ldlibs}"
+        printf "LDFLAGS = %s\n" "${_ldflags}"
+        printf "PREFIX = %s\n\n" "${_prefix}"
+        # shellcheck disable=SC2016
+        printf 'all: $(PROJECT_NAME)'"\n"
+        # shellcheck disable=SC2016
+        printf '$(PROJECT_NAME): '
+    } > "${_MAKEFILE}"
+    if [ "${_SRC_DIR}" = "${_ORIGIN}" ]
+    then
+        printf "So you want to build in-source? I don't blame you...\n"
+        create_insource
+    else
+        printf "So you want to build out of source? Must like things clean and tidy...\n"
+        create_outsource
+    fi
+    {
+        printf "\n"
+        printf "full_clean: clean\n\t"
+        # shellcheck disable=SC2016
+        printf 'rm $(PROJECT_NAME)'
+    } >> "${_MAKEFILE}"
+    return 0
+}
+
+### End Makefile
+
+printf "Welcome to this hand-written configure script!\n"
+if [ "${_RETURN_VARIABLE}" != "${_SEN}" ]
+then
+    printf "H-how? Did you modify the script to cause this...? I'll just set it back...\n"
+    _RETURN_VARIABLE="${_SEN}"
+    printf "Please don't touch it again...\n"
+fi
+_SRC_DIR=$(echo "${_SRC_DIR}" | sed -e "s?/configure??")
+turn_to_full "${_SRC_DIR}"
+_SRC_DIR="${_RETURN_VARIABLE}"
+_RETURN_VARIABLE="${_SEN}"
+parse_arguments "${@}"
+check_requirements
+check_options
+create_makefile
