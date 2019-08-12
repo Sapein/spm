@@ -1,14 +1,14 @@
 # SPM (Simple Process Manager)
-  SPM (Simple Process Manager) is a Simple Process Manager written in Python 3/C.
+  SPM (Simple Process Manager) is a Simple Process Manager written in C.
 
 ### Features
-1. Can manage and restart any processes managed by the function.
+1. Can manage and restart any processes managed by the manager.
 2. Can stop/restart all processes.
 3. Can restart a process upon it dying.
 
 ### Requirements
 1. C99/C11 Compiler
-2. Python 3+
+2. Python 3+ (Only for testing)
 
 
 ## QnA  
