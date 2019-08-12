@@ -16,7 +16,20 @@
   Well, it doesn't really do much input/output stuff, aside from starting/stopping/restarting processes. Additionally everything is compiled in, so if you just need a handful of things you can do it.
 
 ### How do I use this?  
-  Open up `user_procs.c` in `user_processes/` and put a `Create_Process()` call above the `user_setup` function (see the documentation provided there), and then put a corresponding `Process()` call in the `user_setup()` function with the right ID. Also the ID can be anything that is valid for a variable name in C (so it can be anything alphanumeric). Do not put quotes around the ID.
+  Open up `user_procs.c` in `user_processes/` and put a `Create_Process()` call above the `user_setup` function (see the documentation provided there), and then put a corresponding `Process()` call in the `user_setup()` function with the right ID. Also the ID can be anything that is valid for a variable name in C (so it can be anything alphanumeric). Do not put quotes around the ID. An example is below:
+
+```C
+...
+Create_Process(sshd, "sshd -- > sshd.log 2>&1", "kill $(pgrep sshd)", "kill $(pregp sshd) && sshd -- > sshd.log 2>&1")
+Create_Process(nginx, "nginx start", "nginx stop", NULL)
+Create_Process(apache2, "apache start", NULL, NULL)
+...
+void user_setup(void){
+    Process(sshd);
+    Process(nginx);
+    Process(apache);
+}
+```
 
 ### How do I start/stop/restart a process?  
  Individual processes can not be restarted/stopped/restarted by the manager. you can stop all of them (run the compiled binary with an argument of `stop` or `restart`. Currently Restarting only works after running stop, and just runs the start command again. `stop` immediatley stops all processes and deletes them from memory until `restart` is ran.
