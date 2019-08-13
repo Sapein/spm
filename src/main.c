@@ -24,12 +24,6 @@ int main(int argc, char *argv[]){
     char *cmd = NULL;
     uint32_t size = 0;
     SPM_LogStart();
-#if (IND_STOP == true)
-    char *desired_proc_name = NULL;
-    char *proc_name = NULL;
-    uint32_t name_len = 0;
-    struct SPM_Process *_proc = NULL;
-#endif
 
     DoubleFork();
 
@@ -43,37 +37,8 @@ int main(int argc, char *argv[]){
                 }
                 if(SPM_IPC_CheckFIFO() == true){
                     if((cmd = SPM_IPC_ReadFIFO(&size)) != NULL){
-#if (IND_STOP != true)
                         if(strcmp(cmd, "stop") == 0){
                             if(has_stopped == false){
-#else
-                        if(strncmp(cmd, "stop", strlen("stop")) == 0){
-                            if(strcmp(cmd, "stop") != 0){
-                                if((desired_proc_name = calloc(size - strlen("stop"), sizeof(char))) != NULL){
-                                    if(sscanf(cmd, "stop %s", proc_name) == (int)strlen(cmd)){
-                                        if((name_len = SPM_GetName(proc, NULL)) > 0){
-                                            do{
-                                                if((proc_name = calloc(name_len, sizeof(char))) != NULL){
-                                                    SPM_GetName(_proc, proc_name);
-                                                    if(strcmp(proc_name, desired_proc_name) == 0){
-                                                        SPM_ChangeStatus(_proc, STOP);
-                                                        free(proc_name);
-                                                        proc_name = NULL;
-                                                        name_len = 0;
-                                                        break;
-                                                    }
-                                                    free(proc_name);
-                                                    proc_name = NULL;
-                                                }
-                                                _proc = SPM_Manager_GetNextProcess(_proc);
-                                            }while(_proc != proc);
-                                        }
-                                    }
-                                    free(desired_proc_name);
-                                    desired_proc_name = NULL;
-                                }
-                            }else{
-#endif
                                 has_stopped = true;
                                 SPM_Manager_Stop();
                             }
@@ -119,13 +84,8 @@ _Bool CommandParse(int argc, char *argv[]){
     if(SPM_IPC_ExistsFIFO() == true && argc > 1){
         success = true;
         lower_str = argv[1];
-#if (IND_STOP != true)
         if(strcmp(lower_str, "stop") == 0){
             SPM_IPC_WriteFIFO("stop", strlen("stop"));
-#else
-        if(strncmp(lower_str, "stop", strlen("stop")) == 0){
-            SPM_IPC_WriteFIFO(lower_str, strlen(lower_str));
-#endif
         }else if(strcmp(lower_str, "restart") == 0){
             SPM_IPC_WriteFIFO("restart", strlen("restart"));
         }else if(strcmp(lower_str, "shutdown") == 0){
@@ -181,7 +141,3 @@ void DoubleFork(void){
     ;
 #endif
 }
-
-#if (IND_STOP == true && NAMED_PROCS != true)
-#error "IND_STOP and NAMED_PROCS must be true!"
-#endif

@@ -8,8 +8,6 @@
 /* Feature Options */
 /* TODO - Actually Implement these features */
 #define DOUBLE_FORK false /* true = Double-Fork to Daemonize ; false = Do not double-fork */
-#define NAMED_PROCS false /* true = Named Processes at runtime ; false = Processes don't have names at runtime */
-#define IND_STOP false    /* true = Able to stop processes independently ; false = unable to stop processes independently. NOTE: Needs NAMED_PROCS set to work.*/
 
 /* Logging Information */
 #define LOGGING SYSLOG    /* printf = Use printfs to log ; syslog = use syslog interfaces ; custom = use custom ; off = no logging */

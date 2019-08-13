@@ -16,7 +16,6 @@ struct SPM_Command {
     char command[];
 };
 
-#if (NAMED_PROCS != true)
 struct SPM_Process {
     pid_t process_id;
     enum SPM_ProcessStatus CurrentStatus;
@@ -24,17 +23,6 @@ struct SPM_Process {
     struct SPM_Command *stop;
     struct SPM_Command *restart;
 };
-#else
-struct SPM_Process {
-    pid_t process_id;
-    uint32_t name_len;
-    enum SPM_ProcessStatus CurrentStatus;
-    struct SPM_Command *start;
-    struct SPM_Command *stop;
-    struct SPM_Command *restart;
-    char name[];
-};
-#endif
 
 struct SPM_Command *SPM_CreateCommand(uint32_t command_len, char command[]){
     struct SPM_Command *new_command = NULL;
@@ -227,59 +215,4 @@ void SPM_CheckStatus(struct SPM_Process *proc){
 
 pid_t SPM_GetPid(struct SPM_Process *proc){
     return proc->process_id;
-}
-
-#pragma GCC diagnostic push
-#if (NAMED_PROCS != true)
-#pragma GCC diagnostic ignored "-Wunused-parameter"
-#endif
-uint32_t SPM_GetName(struct SPM_Process *proc, char *name_out){
-#pragma GCC diagnostic pop
-#if (NAMED_PROCS == true)
-    uint32_t name_len = 0;
-    if(proc != NULL){
-        if(proc->name_len != strlen(proc->name)){
-            if(proc->name_len > strlen(proc->name)){
-                name_len = proc->name_len;
-            }else{
-                name_len = strlen(proc->name);
-            }
-        }
-        if(name_out != NULL && name_len > 0){
-            if(strncpy(name_out, proc->name, name_len) == NULL){
-                SPM_Log(ERROR, "Unable to copy name %s to name_out!\n", proc->name);
-                name_out = memset(name_out, 0, sizeof(char));
-            }
-        }
-    }
-    return name_len;
-#else
-    return 0;
-#endif
-}
-
-#pragma GCC diagnostic push
-#if (NAMED_PROCS != true)
-#pragma GCC diagnostic ignored "-Wunused-parameter"
-#endif
-struct SPM_Process *SPM_NameProcess(char *name, uint32_t name_len, struct SPM_Process *proc){
-#pragma GCC diagnostic pop
-#if (NAMED_PROCS == true)
-    struct SPM_Process *named_process = NULL;
-    if(name != NULL && name_len > 0){
-        if((named_process = calloc(1, sizeof(struct SPM_Process) + (name_len * sizeof(char))) ) != NULL){
-            if(memcpy(named_process, proc, sizeof(struct SPM_Process)) != NULL){
-                named_process->name_len = name_len;
-                if(strncpy(named_process->name, name, name_len) != NULL){
-                    named_process = NULL;
-                }
-            }else{
-                free(named_process);
-            }
-        }
-    }
-    return named_process;
-#else
-    return NULL;
-#endif
 }
